@@ -40,5 +40,9 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+
+    "allowImportingTsExtensions": true,
+    "noEmit": true,  // required alongside it
+  },
+  "exclude": ["node_modules", "dist", "drizzle.config.ts"],
 }

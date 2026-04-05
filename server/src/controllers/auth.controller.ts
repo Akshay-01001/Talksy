@@ -5,6 +5,7 @@ import type { Request, Response } from 'express';
 import { db } from '../db/index.ts';
 import { eq, or } from 'drizzle-orm';
 import { generateAccessToken, generateRefreshToken } from '../lib/common.ts';
+import type { AuthRequest } from '../types/index.js';
 
 export const register = async (req: Request, res: Response) => {
     try {
@@ -123,3 +124,98 @@ export const login = async (req: Request, res: Response) => {
         });
     }
 }
+
+export const generateNewAccessToken = async (req: AuthRequest, res: Response) => {
+    try {
+        
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Unauthorized"
+            });
+        }
+
+        const accessToken = generateAccessToken(req.user);
+        
+        res.cookie('accessToken', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 1000
+        });
+
+        return res.status(200).json({
+            message: "New access token generated"
+        });
+
+    } catch (error) {
+        console.error("Error generating new access token:", error);
+        return res.status(500).json({
+            message: "Internal server error"
+        });
+    }
+}
+
+export const logout = async (req: AuthRequest, res: Response) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+
+        const refreshToken = req.cookies.refreshToken;
+
+        if (!refreshToken) {
+            // still clear cookies and return success
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'strict',
+            });
+            res.clearCookie('accessToken', {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'strict',
+            });
+            return res.status(200).json({ message: "Logout successful" });
+        }
+
+        const userId = req.user.id;
+
+        // get all tokens of user
+        const tokens = await db.select().from(refreshTokensTable).where(eq(refreshTokensTable.user_id, userId));
+
+        // find matching token
+        let matchedToken = null;
+
+        for (const tokenRecord of tokens) {
+            const isMatch = await bcrypt.compare(refreshToken, tokenRecord.token_hash);
+
+            if (isMatch) {
+                matchedToken = tokenRecord;
+                break;
+            }
+        }
+
+        if (matchedToken) {
+            await db.delete(refreshTokensTable)
+                .where(eq(refreshTokensTable.id, matchedToken.id));
+        }
+
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+        });
+
+        res.clearCookie('accessToken', {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'strict',
+        });
+
+        return res.status(200).json({ message: "Logout successful" });
+
+    } catch (error) {
+        console.error("Logout error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};

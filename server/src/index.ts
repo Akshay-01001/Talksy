@@ -4,6 +4,7 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import './db/index.ts'
 import authRoutes from './routes/auth.route.ts'
+import cookieParser from 'cookie-parser'
 
 const server = express();
 const httpServer = createServer(server);
@@ -27,6 +28,7 @@ io.on("connection", (socket) => {
 });
 
 server.use(express.json());
+server.use(cookieParser());
 server.use("/api/auth", authRoutes);
 
 server.get("/", (req: Request, res: Response) => {

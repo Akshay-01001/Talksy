@@ -5,12 +5,13 @@ import type { Request, Response } from 'express';
 import { db } from '../db/index.ts';
 import { eq, or } from 'drizzle-orm';
 import { generateAccessToken, generateRefreshToken } from '../lib/common.ts';
-import type { AuthRequest } from '../types/index.js';
+import type { AuthRequest } from '../types/index.d.ts';
 
 export const register = async (req: Request, res: Response) => {
     try {
-        const data = req.body;
+        const data = req?.body;
 
+        // validate the data
         const { error, value } = registerSchema.validate(data);
 
         if (error) {
@@ -19,15 +20,17 @@ export const register = async (req: Request, res: Response) => {
             });
         }
 
+        // check if user already exists or not
         const existingUser = await db.select().from(usersTable).
             where(or(eq(usersTable.email, value.email), eq(usersTable.username, value.username)));
 
         if (existingUser?.length > 0) {
-            return res.status(409).json({
+            return res.status(400).json({
                 message: "User already exists"
             });
         }
 
+        // hash the password and create a newUser object
         const hashedPassword = await bcrypt.hash(value.password, 10);
         const newUser = {
             username: value.username,
@@ -37,8 +40,39 @@ export const register = async (req: Request, res: Response) => {
             bio: value.bio
         }
 
-        await db.insert(usersTable).values(newUser);
+        // create a new user in the table
+        const user = await db.insert(usersTable).values(newUser).returning();
 
+        // generate access and refresh token
+        const accessToken = generateAccessToken({ id: user[0]?.id!, username: user[0]?.username! });
+        const refreshToken = generateRefreshToken({ id: user[0]?.id!, username: user[0]?.username! });
+
+        // insert refresh token in the table
+        await db.insert(refreshTokensTable).values({
+            user_id: user[0]?.id!,
+            token_hash: await bcrypt.hash(refreshToken, 10),
+            device_name: req?.headers['user-agent'] || 'Unknown',
+            device_os: 'Unknown',
+            user_agent: req?.headers['user-agent'] || 'Unknown',
+            ip_address: req?.ip
+        });
+
+        // set the cookies
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        res.cookie('accessToken', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 1000
+        });
+
+        // send the success response
         return res.status(201).json({
             message: "User registered successfully",
             user: value
@@ -54,7 +88,8 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
     try {
     
-        const { error, value } = loginSchema.validate(req.body);
+        // validate the data
+        const { error, value } = loginSchema.validate(req?.body);
 
         if (error) {
             return res.status(400).json({
@@ -64,34 +99,41 @@ export const login = async (req: Request, res: Response) => {
 
         const { email, password } = value;
 
+        // get the user details from database
         const user = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
 
+        // if not user found send error response
         if (!user) {
             return res.status(404).json({
                 message: "User not found"
             });
         }
 
+        // check if password is matched
         const isMatch = await bcrypt.compare(password, user[0]?.password!);
 
+        // send eroor on password mismatch
         if (!isMatch) {
             return res.status(401).json({
                 message: "Invalid credentials"
             });
         }
 
+        // generate tokens
         const accessToken = generateAccessToken({ id: user[0]?.id!, username: user[0]?.username! });
         const refreshToken = generateRefreshToken({ id: user[0]?.id!, username: user[0]?.username! });
 
+        // insert refresh token in table
         await db.insert(refreshTokensTable).values({
             user_id: user[0]?.id!,
             token_hash: await bcrypt.hash(refreshToken, 10),
-            device_name: req.headers['user-agent'] || 'Unknown',
+            device_name: req?.headers['user-agent'] || 'Unknown',
             device_os: 'Unknown',
-            user_agent: req.headers['user-agent'] || 'Unknown',
-            ip_address: req.ip
+            user_agent: req?.headers['user-agent'] || 'Unknown',
+            ip_address: req?.ip
         });
 
+        // set the cookies
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -103,9 +145,10 @@ export const login = async (req: Request, res: Response) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 60 * 60 * 1000 // 1 hour
+            maxAge: 60 * 60 * 1000
         });
 
+        // send the success response
         return res.status(200).json({
             message: "Login successful",
             user: {
@@ -128,14 +171,17 @@ export const login = async (req: Request, res: Response) => {
 export const generateNewAccessToken = async (req: AuthRequest, res: Response) => {
     try {
         
-        if (!req.user) {
+        // if no user found in req send error reponse
+        if (!req?.user) {
             return res.status(401).json({
                 message: "Unauthorized"
             });
         }
 
+        // generate access token from user object
         const accessToken = generateAccessToken(req.user);
         
+        // set che access token in cookies
         res.cookie('accessToken', accessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -143,6 +189,7 @@ export const generateNewAccessToken = async (req: AuthRequest, res: Response) =>
             maxAge: 60 * 60 * 1000
         });
 
+        // send success message
         return res.status(200).json({
             message: "New access token generated"
         });
@@ -161,7 +208,7 @@ export const logout = async (req: AuthRequest, res: Response) => {
             return res.status(401).json({ message: "Unauthorized" });
         }
 
-        const refreshToken = req.cookies.refreshToken;
+        const refreshToken = req?.cookies?.refreshToken;
 
         if (!refreshToken) {
             // still clear cookies and return success
@@ -194,6 +241,8 @@ export const logout = async (req: AuthRequest, res: Response) => {
                 break;
             }
         }
+
+        console.log("Matched token record:", matchedToken);
 
         if (matchedToken) {
             await db.delete(refreshTokensTable)

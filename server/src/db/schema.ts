@@ -46,7 +46,7 @@ export const refreshTokensTable = pgTable('tokens', {
   updated_at: timestamp('updated_at').notNull().$onUpdate(() => new Date())
 });
 
-export const friendShipSchema = pgTable('friendships', {
+export const friendShipTable = pgTable('friendships', {
   id: uuid('id').defaultRandom().primaryKey(),
   requester_id: uuid('user_id').notNull().references(()=> usersTable.id, {onDelete: 'cascade'}),
   addressee_id: uuid('user_id').notNull().references(()=> usersTable.id, {onDelete: 'cascade'}),
@@ -55,7 +55,7 @@ export const friendShipSchema = pgTable('friendships', {
   updated_at: timestamp('updated_at').notNull().$onUpdate(() => new Date())
 });
 
-export const chatsSchema = pgTable('chats', {
+export const chatsTable = pgTable('chats', {
   id: uuid('id').defaultRandom().primaryKey(),
   type: chatTypeEnum('type').default('direct').notNull(),
   name: text('name'),
@@ -64,8 +64,8 @@ export const chatsSchema = pgTable('chats', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-export const chatMembers = pgTable("chat_members",{
-    chatId: uuid("chat_id").notNull().references(() => chatsSchema.id, { onDelete: "cascade" }),
+export const chatMembersTable = pgTable("chat_members",{
+    chatId: uuid("chat_id").notNull().references(() => chatsTable.id, { onDelete: "cascade" }),
     userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
     role: chatRoleEnum("role").default("member").notNull(),
     joinedAt: timestamp("joined_at").defaultNow().notNull(),
@@ -73,9 +73,9 @@ export const chatMembers = pgTable("chat_members",{
   (table)=> [primaryKey({columns: [table.chatId, table.userId]})]
 )
 
-export const messages = pgTable('messages', {
+export const messagesTable = pgTable('messages', {
   id: uuid('id').defaultRandom().primaryKey(),
-  chatId: uuid('chat_id').notNull().references(() => chatsSchema.id, { onDelete: 'cascade' }),
+  chatId: uuid('chat_id').notNull().references(() => chatsTable.id, { onDelete: 'cascade' }),
   senderId: uuid('sender_id').notNull().references(() => usersTable.id, { onDelete: 'cascade' }),
   type: messageTypeEnum('type').default('text').notNull(),
   content: text('content'),
@@ -85,8 +85,8 @@ export const messages = pgTable('messages', {
   deletedAt: timestamp('deleted_at')
 });
 
-export const messageReads = pgTable('message_reads', {
-  messageId: uuid('message_id').notNull().references(() => messages.id, { onDelete: 'cascade' }),
+export const messageReadsTable = pgTable('message_reads', {
+  messageId: uuid('message_id').notNull().references(() => messagesTable.id, { onDelete: 'cascade' }),
   userId: uuid('user_id').notNull().references(() => usersTable.id, { onDelete: 'cascade' }),
   seenAt: timestamp('seen_at').defaultNow().notNull(),
   }, 

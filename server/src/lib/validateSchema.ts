@@ -93,3 +93,14 @@ export const friendShipSchema = Joi.object({
 }).messages({
   "any.invalid": "You cannot send a friend request to yourself",
 });
+
+export const sendFriendRequestSchema = Joi.object({
+  request_id: Joi.string().
+    uuid().
+    required().
+    messages({
+      "string.empty": "Request ID is required"
+    }),
+  status: Joi.string()
+    .valid("pending", "accepted", "rejected")
+});

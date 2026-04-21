@@ -1,5 +1,8 @@
-import type { Request, Response} from "express";
-import { friendShipSchema, sendFriendRequestSchema } from "../lib/validateSchema.ts";
+import type { Request, Response } from "express";
+import {
+  friendShipSchema,
+  sendFriendRequestSchema,
+} from "../lib/validateSchema.ts";
 import { db } from "../db/index.ts";
 import { friendShipTable, usersTable } from "../db/schema.ts";
 import { and, eq, inArray, or } from "drizzle-orm";
@@ -27,13 +30,13 @@ export const sendFriendRequest = async (req: Request, res: Response) => {
         or(
           and(
             eq(friendShipTable.requester_id, value.requester_id),
-            eq(friendShipTable.addressee_id, value.addressee_id)
+            eq(friendShipTable.addressee_id, value.addressee_id),
           ),
           and(
             eq(friendShipTable.requester_id, value.addressee_id),
-            eq(friendShipTable.addressee_id, value.requester_id)
-          )
-        )
+            eq(friendShipTable.addressee_id, value.requester_id),
+          ),
+        ),
       )
       .limit(1);
 
@@ -49,13 +52,17 @@ export const sendFriendRequest = async (req: Request, res: Response) => {
       message: "Request sent successfully",
     });
   } catch (error) {
+    console.error("Error sending friend request:", error);
     return res.status(500).json({
       message: "Internal server error",
     });
   }
 };
 
-export const acceptOrRejectFriendRequest = async (req: AuthRequest, res: Response) => {
+export const acceptOrRejectFriendRequest = async (
+  req: AuthRequest,
+  res: Response,
+) => {
   try {
     const userId = req?.user?.id;
 
@@ -109,7 +116,6 @@ export const acceptOrRejectFriendRequest = async (req: AuthRequest, res: Respons
       message: `Friend request ${status}`,
       data: result[0],
     });
-
   } catch (error) {
     return res.status(500).json({
       message: "Internal server error",
@@ -134,26 +140,29 @@ export const getFriendsList = async (req: Request, res: Response) => {
         and(
           or(
             eq(friendShipTable.requester_id, userId),
-            eq(friendShipTable.addressee_id, userId)
+            eq(friendShipTable.addressee_id, userId),
           ),
-          eq(friendShipTable.status, "accepted")
-        )
+          eq(friendShipTable.status, "accepted"),
+        ),
       );
 
-    const friendIds = friendships.map(f =>
-      f.requester_id === userId ? f.addressee_id : f.requester_id
+    const friendIds = friendships.map((f) =>
+      f.requester_id === userId ? f.addressee_id : f.requester_id,
     );
 
     const friends = await db
-      .select()
+      .select({
+        username: usersTable.username,
+        avatar_url: usersTable.avatar_url,
+        bio: usersTable.bio
+      })
       .from(usersTable)
       .where(inArray(usersTable.id, friendIds));
 
     return res.status(200).json({
       message: "Friend List Fetched Successfully",
-      data: friends
-    })
-
+      data: friends,
+    });
   } catch (error) {
     return res.status(500).json({
       message: "Internal server error",
@@ -176,25 +185,26 @@ export const getFriendRequestsList = async (req: Request, res: Response) => {
       .from(friendShipTable)
       .where(
         and(
-          or(
-            eq(friendShipTable.addressee_id, userId)
-          ),
-          eq(friendShipTable.status, "pending")
-        )
+          or(eq(friendShipTable.addressee_id, userId)),
+          eq(friendShipTable.status, "pending"),
+        ),
       );
 
-    const senderIds = requests.map((f)=> f.requester_id);
+    const senderIds = requests.map((f) => f.requester_id);
 
     const requestList = await db
-      .select()
+      .select({
+        username: usersTable.username,
+        avatar_url: usersTable.avatar_url,
+        bio: usersTable.bio
+      })
       .from(usersTable)
       .where(inArray(usersTable.id, senderIds));
 
     return res.status(200).json({
       message: "Friend Requests List Fetched Successfully",
-      data: requestList
-    })
-
+      data: requestList,
+    });
   } catch (error) {
     return res.status(500).json({
       message: "Internal server error",

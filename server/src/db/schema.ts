@@ -48,8 +48,8 @@ export const refreshTokensTable = pgTable('tokens', {
 
 export const friendShipTable = pgTable('friendships', {
   id: uuid('id').defaultRandom().primaryKey(),
-  requester_id: uuid('user_id').notNull().references(()=> usersTable.id, {onDelete: 'cascade'}),
-  addressee_id: uuid('user_id').notNull().references(()=> usersTable.id, {onDelete: 'cascade'}),
+  requester_id: uuid('requester_id').notNull().references(()=> usersTable.id, {onDelete: 'cascade'}),
+  addressee_id: uuid('addressee_id').notNull().references(()=> usersTable.id, {onDelete: 'cascade'}),
   status: statusEnum('status').default('pending'),
   created_at: timestamp('created_at').notNull().defaultNow(),
   updated_at: timestamp('updated_at').notNull().$onUpdate(() => new Date())

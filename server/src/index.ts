@@ -3,8 +3,9 @@ import { configDotenv } from 'dotenv'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
 import './db/index.ts'
-import authRoutes from './routes/auth.route.ts'
 import cookieParser from 'cookie-parser'
+import authRoutes from './routes/auth.route.ts'
+import friendShipRoutes from './routes/friendships.route.ts'
 
 const server = express();
 const httpServer = createServer(server);
@@ -30,6 +31,7 @@ io.on("connection", (socket) => {
 server.use(express.json());
 server.use(cookieParser());
 server.use("/api/auth", authRoutes);
+server.use("/api/friends", friendShipRoutes);
 
 server.get("/", (req: Request, res: Response) => {
     return res.status(200).json({

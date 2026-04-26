@@ -117,15 +117,16 @@ export const acceptOrRejectFriendRequest = async (
       data: result[0],
     });
   } catch (error) {
+    console.error(error)
     return res.status(500).json({
       message: "Internal server error",
     });
   }
 };
 
-export const getFriendsList = async (req: Request, res: Response) => {
+export const getFriendsList = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.params.userId as string;
+    const userId = req.user?.id as string;
 
     if (!userId) {
       return res.status(400).json({

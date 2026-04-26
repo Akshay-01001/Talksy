@@ -4,8 +4,8 @@ import { acceptOrRejectFriendRequest, getFriendRequestsList, getFriendsList, sen
 const router = express.Router();
 
 router.post('/request', verifyRefreshToken, sendFriendRequest);
-router.post('/list', verifyRefreshToken, getFriendsList);
+router.get('/list', verifyRefreshToken, getFriendsList);
 router.get('/requests/:userId', verifyRefreshToken, getFriendRequestsList);
-router.put('/status/request/:requestId',verifyRefreshToken, acceptOrRejectFriendRequest)
+router.put('/status/request/',verifyRefreshToken, acceptOrRejectFriendRequest)
 
 export default router;
